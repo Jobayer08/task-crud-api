@@ -5,6 +5,10 @@ from pydantic import BaseModel
 class TaskCreate(BaseModel):
     title: str
 
+class TaskUpdate(BaseModel):
+    title: str | None = None
+    done: bool | None = None    
+
 app = FastAPI()
 
 tasks = [
@@ -59,3 +63,61 @@ def create_task(task: TaskCreate):
     tasks.append(new_task)
 
     return new_task
+
+@app.put("/tasks/{task_id}")
+def update_task(task_id: int, task_update: TaskUpdate):
+
+    # Find the task
+    for task in tasks:
+
+        if task["id"] == task_id:
+
+            # Check empty body
+            if task_update.title is None and task_update.done is None:
+                return JSONResponse(
+                    status_code=400,
+                    content={"error": "Update body cannot be empty"}
+                )
+
+            # Update title
+            if task_update.title is not None:
+
+                if not task_update.title.strip():
+                    return JSONResponse(
+                        status_code=400,
+                        content={"error": "Title cannot be empty"}
+                    )
+
+                task["title"] = task_update.title
+
+            # Update done
+            if task_update.done is not None:
+                task["done"] = task_update.done
+
+            return task
+
+    # Task not found
+    return JSONResponse(
+        status_code=404,
+        content={"error": f"Task {task_id} not found"}
+    )    
+
+@app.delete("/tasks/{task_id}", status_code=204)
+def delete_task(task_id: int):
+
+    # Find the task
+    for index, task in enumerate(tasks):
+
+        if task["id"] == task_id:
+
+            # Delete task
+            tasks.pop(index)
+
+            # 204 means no response body
+            return None
+
+    # Task not found
+    return JSONResponse(
+        status_code=404,
+        content={"error": f"Task {task_id} not found"}
+    )
