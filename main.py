@@ -1,6 +1,44 @@
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+import sqlite3
+
+DATABASE = "tasks.db"
+
+
+def init_database():
+    connection = sqlite3.connect(DATABASE)
+    cursor = connection.cursor()
+
+    # Create tasks table if it doesn't exist
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS tasks (
+            id INTEGER PRIMARY KEY,
+            title TEXT NOT NULL,
+            done BOOLEAN NOT NULL DEFAULT 0
+        )
+    """)
+
+    # Check whether the table is empty
+    cursor.execute("SELECT COUNT(*) FROM tasks")
+    count = cursor.fetchone()[0]
+
+    # Insert example tasks only if the table is empty
+    if count == 0:
+        cursor.executemany("""
+            INSERT INTO tasks (title, done)
+            VALUES (?, ?)
+        """, [
+            ("Learn Python", False),
+            ("Build CRUD API", False),
+            ("Connect SQLite database", False)
+        ])
+
+    connection.commit()
+    connection.close()
+
+
+init_database()
 
 class TaskCreate(BaseModel):
     title: str
@@ -11,11 +49,7 @@ class TaskUpdate(BaseModel):
 
 app = FastAPI()
 
-tasks = [
-    {"id": 1, "title": "Learn Python", "done": False},
-    {"id": 2, "title": "Build API", "done": False},
-    {"id": 3, "title": "Complete assignment", "done": True}
-]
+
 
 @app.get("/")
 def root():
