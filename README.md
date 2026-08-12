@@ -3,7 +3,12 @@
 ## Description
 
 A simple RESTful CRUD API for managing tasks.
+
 Built with Python and FastAPI.
+
+This project uses SQLite for persistent data storage. Tasks are stored in a
+SQLite database instead of in-memory data, so the data remains available
+after restarting the server.
 
 ## Features
 
@@ -13,8 +18,10 @@ Built with Python and FastAPI.
 - Update tasks
 - Delete tasks
 - Input validation
+- SQLite database storage
+- Persistent data across server restarts
+- Automatic database and table creation
 - Swagger UI documentation
-- In-memory data storage
 
 ## Technologies
 
@@ -22,44 +29,16 @@ Built with Python and FastAPI.
 - FastAPI
 - Uvicorn
 - Pydantic
+- SQLite
 
-## Installation
+## Database
 
-1. Clone the repository
-2. Create virtual environment
-3. Install dependencies
-4. Run the server
+This project uses SQLite for persistent data storage.
 
-## Run
+SQLite was chosen because it is lightweight, simple to use, and does not
+require a separate database server.
 
-uvicorn main:app --reload
+The database file is:
 
-## API Endpoints
-
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | / | API information |
-| GET | /health | Health check |
-| GET | /tasks | Get all tasks |
-| GET | /tasks/{id} | Get one task |
-| POST | /tasks | Create task |
-| PUT | /tasks/{id} | Update task |
-| DELETE | /tasks/{id} | Delete task |
-
-## Swagger UI
-
-http://localhost:8000/docs
-
-[Swagger Screenshot]
-
-## Testing
-
-Example curl commands...
-
-## Status Codes
-
-200 - OK
-201 - Created
-204 - No Content
-400 - Bad Request
-404 - Not Found
+```text
+tasks.db
