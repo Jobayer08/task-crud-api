@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 import sqlite3
@@ -129,57 +129,109 @@ def create_task(task: TaskCreate):
 @app.put("/tasks/{task_id}")
 def update_task(task_id: int, task_update: TaskUpdate):
 
-    # Find the task
-    for task in tasks:
+    connection = sqlite3.connect("tasks.db")
+    cursor = connection.cursor()
 
-        if task["id"] == task_id:
+    # Find the task in database
+    cursor.execute(
+        "SELECT id, title, done FROM tasks WHERE id = ?",
+        (task_id,)
+    )
 
-            # Check empty body
-            if task_update.title is None and task_update.done is None:
-                return JSONResponse(
-                    status_code=400,
-                    content={"error": "Update body cannot be empty"}
-                )
-
-            # Update title
-            if task_update.title is not None:
-
-                if not task_update.title.strip():
-                    return JSONResponse(
-                        status_code=400,
-                        content={"error": "Title cannot be empty"}
-                    )
-
-                task["title"] = task_update.title
-
-            # Update done
-            if task_update.done is not None:
-                task["done"] = task_update.done
-
-            return task
+    existing_task = cursor.fetchone()
 
     # Task not found
-    return JSONResponse(
-        status_code=404,
-        content={"error": f"Task {task_id} not found"}
-    )    
+    if existing_task is None:
+        connection.close()
 
+        return JSONResponse(
+            status_code=404,
+            content={"error": f"Task {task_id} not found"}
+        )
+
+    # Check empty body
+    if task_update.title is None and task_update.done is None:
+        connection.close()
+
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Update body cannot be empty"}
+        )
+
+    # Keep existing values
+    current_title = existing_task[1]
+    current_done = bool(existing_task[2])
+
+    # Update title if provided
+    if task_update.title is not None:
+
+        if not task_update.title.strip():
+            connection.close()
+
+            return JSONResponse(
+                status_code=400,
+                content={"error": "Title cannot be empty"}
+            )
+
+        current_title = task_update.title
+
+    # Update done if provided
+    if task_update.done is not None:
+        current_done = task_update.done
+
+    # Update database
+    cursor.execute(
+        """
+        UPDATE tasks
+        SET title = ?, done = ?
+        WHERE id = ?
+        """,
+        (current_title, current_done, task_id)
+    )
+
+    connection.commit()
+
+    # Get updated task
+    cursor.execute(
+        "SELECT id, title, done FROM tasks WHERE id = ?",
+        (task_id,)
+    )
+
+    updated_task = cursor.fetchone()
+
+    connection.close()
+
+    # Return updated task
+    return {
+        "id": updated_task[0],
+        "title": updated_task[1],
+        "done": bool(updated_task[2])
+    }
 @app.delete("/tasks/{task_id}", status_code=204)
 def delete_task(task_id: int):
+    connection = sqlite3.connect("tasks.db")
+    cursor = connection.cursor()
 
-    # Find the task
-    for index, task in enumerate(tasks):
-
-        if task["id"] == task_id:
-
-            # Delete task
-            tasks.pop(index)
-
-            # 204 means no response body
-            return None
-
-    # Task not found
-    return JSONResponse(
-        status_code=404,
-        content={"error": f"Task {task_id} not found"}
+    cursor.execute(
+        "SELECT id FROM tasks WHERE id = ?",
+        (task_id,)
     )
+
+    existing_task = cursor.fetchone()
+
+    if existing_task is None:
+        connection.close()
+        raise HTTPException(
+            status_code=404,
+            detail="Task not found"
+        )
+
+    cursor.execute(
+        "DELETE FROM tasks WHERE id = ?",
+        (task_id,)
+    )
+
+    connection.commit()
+    connection.close()
+
+    return None
